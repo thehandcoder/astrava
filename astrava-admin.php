@@ -4,7 +4,14 @@
      * Functionality related to the Admin pages
      * 
      */
-	 
+	
+
+function astrava_enqueue_admin( $hook ) {
+    wp_enqueue_script( 'astrava_admin_scripts', ASTRAVA_PLUGIN_URL . 'assets/js/astrava-admin.js', array(), '1.0', true );
+}
+
+add_action( 'admin_enqueue_scripts', 'astrava_enqueue_admin' );
+
     /**
      * Add the Astrava tab to the settings menu
      */
@@ -61,8 +68,11 @@
         add_settings_field('astrava_embed_pace', 'Use pace for runs', 'display_astrava_embed_pace', 
                            'astrava_gen_settings', 'astrava_gen_settings');
 
-        add_settings_field('astrava_embed_template', 'Embed Template', 'display_astrava_embed_template', 
-                           'astrava_gen_settings', 'astrava_gen_settings');
+
+        register_setting('astrava_templates','astrava_templates');
+        add_settings_section('astrava_templates', 'Edit Templates', 'display_astrava_templates', 'astrava_templates');
+        add_settings_field('default', 'Default Template', 'display_astrava_embed_template', 
+                           'astrava_templates', 'astrava_templates');
 
 	}
 
@@ -149,7 +159,8 @@
         $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
         echo $template->render('admin/forms/select', array( 'settings' => $settings,
                                                             'field'    => $field,
-                                                            'values'   => $values));
+                                                            'values'   => $values,
+                                                            'current'  => $options[$field]));
     }
 
     /**
@@ -211,11 +222,11 @@
      * @return void
      */
     function display_astrava_embed_template() {
-        $options  = wp_parse_args(get_option('astrava_gen_settings'), array('astrava_embed_template' => ''));
+        $options  = wp_parse_args(get_option('astrava_templates'), array('default' => ''));
         $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
-        wp_editor($options['astrava_embed_template'], 'template_editor', 
+        wp_editor($options['default'], 'template_editor', 
                     array ('media_buttons' => false, 
-                           'textarea_name' => 'astrava_gen_settings[astrava_embed_template]',
+                           'textarea_name' => 'astrava_templates[default]',
                            'textarea_rows' => 10)); 
         echo $template->render('admin/available-tags');
     }
@@ -246,17 +257,24 @@
      * @return void
      */
     function display_astrava_admin_page() {
-        $ctab = (isset($_GET['tab']) ? $_GET['tab'] : 'opts');
+        $ctab = (isset($_GET['tab']) ? $_GET['tab'] : 'gen');
         $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
 
         echo $template->render('admin/page-header', array('ctab' => $ctab));
         
-        if ($ctab == 'api') {
-            settings_fields('astrava_api_settings');
-            do_settings_sections('astrava_api_settings'); 
-        } else {
-            settings_fields('astrava_gen_settings');
-            do_settings_sections('astrava_gen_settings');   
+        switch($ctab) {
+            case 'api':
+                settings_fields('astrava_api_settings');
+                do_settings_sections('astrava_api_settings');
+                break;
+            case 'gen':
+                settings_fields('astrava_gen_settings');
+                do_settings_sections('astrava_gen_settings');  
+                break;
+            case 'templates':
+                settings_fields('astrava_templates');
+                do_settings_sections('astrava_templates');
+                break;
         }
 
         submit_button();
@@ -277,15 +295,31 @@
 
         //Check to see if the options are avaialble
         if (!empty($options['astrava_strava_oauth'])){
-            $strava          = new StravaApi($options['astrava_strava_client_id'], 
-                                             $options['astrava_strava_client_secret'],
-                                             $options['astrava_strava_oauth']);
+            if (isset($_REQUEST['strava_page'])) {
+                $current_page    = intval($_REQUEST['strava_page']);
+                $activity_params = array('per_page' => 5, 'page' => $current_page);
+            } else {
+                $current_page    = 1;
+                $activity_params = array('per_page' => 5);   
+            }
+
+
+            // create a hash from the params
+            // check for a transient If none was found then make the request
+            $key        = md5(serialize($activity_params));
+            $activities = get_transient('astrava-activity-'. $key);
             
-            $activities = $strava->getActivities(array('per_page' => 5)); 
-            echo $template->render('admin/post-meta-box', array('activities' => $activities));
+            if (!$activities) {
+                $strava     = new StravaApi($options['astrava_strava_client_id'], 
+                                            $options['astrava_strava_client_secret'],
+                                            $options['astrava_strava_oauth']);
+                $activities = $strava->getActivities($activity_params);
+                set_transient('astrava-activity-'. $key, $activities, 60 * 10);
+            }
+
+            echo $template->render('admin/post-meta-box', array('activities' => $activities, 'current_page' => $current_page));
         } else { //If the plugin isn't configured, Display error message and link to configs.
             echo $template->render('admin/oauth-warning', array('optionsUrl' => home_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api'));
         }
         
     }
-    

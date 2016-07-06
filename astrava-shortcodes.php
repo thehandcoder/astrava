@@ -21,23 +21,34 @@
 	 * @return string Formated HTML
 	 */
 	function parse_astrava_shortcode( $atts ){
-		$api_options = wp_parse_args(get_option('astrava_api_settings')); 
-        $gen_options = wp_parse_args(get_option('astrava_gen_settings'), array('astrava_embed_type' => 'iframe'));
-        $html_out 	 = '';
-        $template 	 = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
+		$api_options 	   = wp_parse_args(get_option('astrava_api_settings')); 
+        $gen_options 	   = wp_parse_args(get_option('astrava_gen_settings'), array('astrava_embed_type' => 'iframe'));
+        $astrava_templates = get_option('astrava_templates');
+
+        $html_out 	 	   = '';
+        $template 	 	   = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
 
         //Check to see if the options are avaialble
         if (!empty($api_options['astrava_strava_oauth'])){
-            $strava          = new StravaApi($api_options['astrava_strava_client_id'], 
-                                             $api_options['astrava_strava_client_secret'],
-                                             $api_options['astrava_strava_oauth']);
+			$strava = new StravaApi($api_options['astrava_strava_client_id'], 
+                                 	$api_options['astrava_strava_client_secret'],
+                                 	$api_options['astrava_strava_oauth']);
+
 			//Get the Activity details for the id
-			$activity = $strava->getActivity($atts['activity']);
+			// create a hash from the params
+            // check for a transient If none was found then make the request
+            $activity = get_transient('astrava-activity-id'. $atts['activity']);
+            
+            if (!$activities) {
+				$activity = $strava->getActivity($atts['activity']);
+				set_transient('astrava-activity-id'. $atts['activity'], $activity, 60 * 60);
+			} 
+			
 			if (isset($activity->id)) {
 				if ($gen_options['astrava_embed_type'] == 'iframe' or isset($atts['iframe'])) {
 					$html_out = '<iframe height="405" width="100%"" frameborder="0" allowtransparency="true" scrolling="no" src="https://www.strava.com/activities/' . $atts['activity'] . '/embed/' . $activity->embed_token . '"></iframe>';
 				} else {
-					$strava_template = $gen_options['astrava_embed_template'];
+					$strava_template = $astrava_templates['default'];
 					
 					// Name
 					$strava_template = str_replace('[name]', $activity->name, $strava_template);
@@ -97,7 +108,8 @@
 					$strava_template = str_replace('[elevation]', $activity->total_elevation_gain, $strava_template);
 
 					// Google Map
-					$map = $template->render('google-map', array('lat' 		=> $activity->start_latlng[0],
+					$map = $template->render('google-map', array('id'		=> $activity->id,
+																 'lat' 		=> $activity->start_latlng[0],
 																 'lng' 		=> $activity->start_latlng[1],
 																 'polyline' => addslashes($activity->map->polyline)));
 					
@@ -123,4 +135,3 @@
 
 		return $html_out;
 	}
-	

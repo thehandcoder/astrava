@@ -91,7 +91,9 @@ class StravaApi {
 		}
 
 		//execute post
-		$result = json_decode(curl_exec($ch));
+		$result = curl_exec($ch);
+
+		$result = json_decode($result);
 
 		//close connection
 		curl_close($ch);
