@@ -1,0 +1,7 @@
+<ol>
+    <li> Create an application at <a target="_new" href="http://www.strava.com/developers">http://www.strava.com/developers</a>. Make sure the redirect URL is set to the URL of your site.</li>
+    <li> Enter the Client ID and Secret in the fields below.  After you save your settings, You will be presented with a button to authorize Strava.</li>
+</ol>
+<?php if (isset($authUrl)): ?>
+<p><a href="<?php echo $authUrl ?>"><img src="<?php echo $plugin_url; ?>assets/ConnectWithStrava.png"></a></p>
+<?php endif; ?>

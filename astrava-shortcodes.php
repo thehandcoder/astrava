@@ -9,10 +9,22 @@
 
 
 	add_shortcode( 'astrava', 'parse_astrava_shortcode');
+
+	/**
+	 * Shortcode processor for [astrava]
+	 * Options:
+	 *  [astrava
+	 * 	 	activity=  (The strava activity id)
+	 * 	 	iframe     (Force use of iframe instead of template)
+	 *  ]
+	 * @param  array $atts attributes passed into the shortcode
+	 * @return string Formated HTML
+	 */
 	function parse_astrava_shortcode( $atts ){
 		$api_options = wp_parse_args(get_option('astrava_api_settings')); 
         $gen_options = wp_parse_args(get_option('astrava_gen_settings'), array('astrava_embed_type' => 'iframe'));
         $html_out 	 = '';
+        $template 	 = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
 
         //Check to see if the options are avaialble
         if (!empty($api_options['astrava_strava_oauth'])){
@@ -25,16 +37,16 @@
 				if ($gen_options['astrava_embed_type'] == 'iframe' or isset($atts['iframe'])) {
 					$html_out = '<iframe height="405" width="100%"" frameborder="0" allowtransparency="true" scrolling="no" src="https://www.strava.com/activities/' . $atts['activity'] . '/embed/' . $activity->embed_token . '"></iframe>';
 				} else {
-					$template = $gen_options['astrava_embed_template'];
+					$strava_template = $gen_options['astrava_embed_template'];
 					
 					// Name
-					$template = str_replace('[name]', $activity->name, $template);
+					$strava_template = str_replace('[name]', $activity->name, $strava_template);
 
 					// Description
-					$template = str_replace('[description]', $activity->description, $template);
+					$strava_template = str_replace('[description]', $activity->description, $strava_template);
 
 					// Time
-					$template = str_replace('[time]', gmdate('H:i:s', $activity->moving_time), $template);
+					$strava_template = str_replace('[time]', gmdate('H:i:s', $activity->moving_time), $strava_template);
 
 					// Distance
 					if ($gen_options['astrava_embed_units'] == i) {
@@ -42,7 +54,7 @@
 					} else {
 						$distance = round($activity->distance / 1000, 2) . ' k';
 					}
-					$template = str_replace('[distance]', $distance, $template);
+					$strava_template = str_replace('[distance]', $distance, $strava_template);
 
 					// Speed
 					if ($gen_options['astrava_embed_units'] == i) {
@@ -67,64 +79,37 @@
 						}
 					}
 
-					$template = str_replace('[speed]', $speed, $template);
+					$strava_template = str_replace('[speed]', $speed, $strava_template);
 
 					// Suffer Score
-					$template = str_replace('[suffer]', $activity->suffer_score, $template);
+					$strava_template = str_replace('[suffer]', $activity->suffer_score, $strava_template);
 
 					// Average HR
-					$template = str_replace('[avg_hr]', $activity->average_heartrate, $template);
+					$strava_template = str_replace('[avg_hr]', $activity->average_heartrate, $strava_template);
 
 					// Max HR
-					$template = str_replace('[max_hr]', $activity->max_heartrate, $template);
+					$strava_template = str_replace('[max_hr]', $activity->max_heartrate, $strava_template);
 
 					// Type
-					$template = str_replace('[type]', $activity->type, $template);
+					$strava_template = str_replace('[type]', $activity->type, $strava_template);
 
 					// Elevation
-					$template = str_replace('[elevation]', $activity->total_elevation_gain, $template);
-
-					ob_start();
-					?>
-					<div id="strava_map"></div>
-					<script type="text/javascript" src="http://maps.google.com/maps/api/js??key=AIzaSyAoAUyOJ-PoLBa8QGGyWNf_A1-6Mh8f84Q&libraries=geometry&amp;sensor=false">
-					</script>
-					<style type="text/css"> #strava_map {width:100%;height:300px;}</style> 
-					<script type='text/javascript'>
-				        var map = new google.maps.Map(document.getElementById('strava_map'), {
-				          center: {lat: <?php echo $activity->start_latlng[0]; ?>, 
-				          		   lng: <?php echo $activity->start_latlng[1]; ?>},
-				          zoom: 15
-				        });
-
-				        var decodedPath = google.maps.geometry.encoding.decodePath("<?php echo addslashes($activity->map->polyline); ?>");
-
-				        var setRegion = new google.maps.Polyline({
-									        path: decodedPath,
-									        strokeColor: "#FF0000",
-									        strokeOpacity: 1.0,
-									        strokeWeight: 2,
-									        map: map
-									    });
-
-				        var points = setRegion.getPath().getArray();
-					    var bounds = new google.maps.LatLngBounds();
-					    for (var n = 0; n < points.length ; n++){
-					        bounds.extend(points[n]);
-					    }
-					    
-					    center = bounds.getCenter();
-					    map.setCenter(center);
-					</script>
-					<?php
-					$map = ob_get_clean();
-					
-					ob_end_flush();
+					$strava_template = str_replace('[elevation]', $activity->total_elevation_gain, $strava_template);
 
 					// Google Map
-					$template = str_replace('[map]', $map, $template);
+					$map = $template->render('google-map', array('lat' 		=> $activity->start_latlng[0],
+																 'lng' 		=> $activity->start_latlng[1],
+																 'polyline' => addslashes($activity->map->polyline)));
+					
+					$strava_template = str_replace('[map]', $map, $strava_template);
 
-					$html_out = $template;
+					// Elevation
+					$strava_template = str_replace('[photo]', $activity->total_elevation_gain, $strava_template);
+
+					// Elevation
+					$strava_template = str_replace('[photoOrMap]', $activity->total_elevation_gain, $strava_template);
+
+					$html_out = $strava_template;
 				}
 				//} else {
 					//user a template
@@ -138,8 +123,4 @@
 
 		return $html_out;
 	}
-
-	// add_shortcode( 'astrava_map', 'parse_astrava_map_shortcode');
-	// function parse_astrava_map_shortcode($atts){
-
-	// }
+	

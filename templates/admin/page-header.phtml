@@ -1,0 +1,9 @@
+<div class="wrap">
+<h1> Custom Strava Integration </h1>
+
+<h2 class="nav-tab-wrapper">
+    <a href="?page=astrava_admin&tab=opts" class="nav-tab <?php if ($ctab != 'api') echo 'nav-tab-active'; ?>">General</a>
+    <a href="?page=astrava_admin&tab=api" class="nav-tab <?php if ($ctab == 'api') echo 'nav-tab-active'; ?>">Connect to Strava</a>
+</h2>
+
+<form action="options.php" method="post">

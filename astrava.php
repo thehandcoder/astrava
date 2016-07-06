@@ -8,12 +8,19 @@
 		Author URI: http://jesustaketheheels.com
 	*/
 	
+	// Basic Constants
 	define('ASTRAVA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 	define('ASTRAVA_PLUGIN_URL', plugin_dir_url(__FILE__));
 	
+	// Require classes and other files
 	require_once(ASTRAVA_PLUGIN_DIR . 'classes/StravaApi.php');
+	require_once(ASTRAVA_PLUGIN_DIR . 'classes/Template.php');
 	require_once(ASTRAVA_PLUGIN_DIR . 'astrava-shortcodes.php');
+	if (is_admin()) {
+		require_once(ASTRAVA_PLUGIN_DIR . 'astrava-admin.php');
+	}
 
+	// Add activiation hook to fill in default option values
 	register_activation_hook(__FILE__, 'default_options');
 	
 	function default_options() {
@@ -44,10 +51,4 @@
 		
 		update_option('astrava_gen_settings', $options);
 	}
-
-	if (is_admin()) {
-		require_once(ASTRAVA_PLUGIN_DIR . 'astrava-admin.php');
-	}
-
 	
-?>

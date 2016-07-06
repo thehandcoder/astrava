@@ -1,0 +1,5 @@
+<select name="<?php echo $settings; ?>[<?php echo $field ?>]">
+    <?php foreach ($values as $name => $value): ?>
+    <option<?php if ($options[$field] == $value) echo " selected" ?>><?php echo $name ?></option>
+    <?php endforeach; ?>
+</select>

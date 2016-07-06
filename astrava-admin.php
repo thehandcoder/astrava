@@ -1,26 +1,38 @@
 <?php
     /**
      * 
-     * 
      * Functionality related to the Admin pages
      * 
-     * 
-     * 
      */
-    
-   /**
-    * 
-    * These are all tehe functions and actions used for the admin section of the plugin
-    * 
-    */
 	 
+    /**
+     * Add the Astrava tab to the settings menu
+     */
 	add_action('admin_menu', 'astrava_tab');
+    /**
+     * Create the astrava options
+     */
+    add_action('admin_init','astrava_admin_init');
+
+    /**
+     * Wrapper to add the options page to the Wordpress Admin
+     * 
+     * @return void
+     */
 	function astrava_tab() {
 		add_options_page('Astrava','Astrava','manage_options','astrava_admin','display_astrava_admin_page');
 	}
 		
+    /**
+     * Ad the Meta box to the post page
+     */
+    add_action("add_meta_boxes", "add_custom_meta_box");
 
-	add_action('admin_init','astrava_admin_init');
+    /**
+     * Wrapper to initialize all the astrava options
+     * 
+     * @return void
+     */
 	function astrava_admin_init() {
 
         register_setting('astrava_api_settings','astrava_api_settings');        
@@ -54,13 +66,23 @@
 
 	}
 
-    add_action("add_meta_boxes", "add_custom_meta_box");
-    function add_custom_meta_box()
-    {
-        add_meta_box("astrava-admin-meta", "Recent Strava Activity", "display_astrava_admin_meta", "post", "side", "core", null);
+    /**
+     * Wrapper for adding the metabox to the post
+     * 
+     * @return void
+     */
+    function add_custom_meta_box() {
+        add_meta_box("astrava-admin-meta", "Recent Strava Activity", "display_astrava_admin_meta", 
+                     "post", "side", "core", null);
     }
 
-
+    /**
+     * Process the request for a bearer token
+     * @param  array $args An array of options as passed in from the add_settings_field.  It 
+     *                     expects at least the initial array item to be the name of the option
+     *                   
+     * @return void
+     */
     function process_oath_token($args) {
         // Look to see if we have a code
         if (isset($_GET['code'])) {
@@ -77,70 +99,104 @@
     }
 
     /**
-     * Functions that generate HTML are all below this line.
+     * Check to see if the strava API has been configured and display a warning if it hasn't
+     * 
+     * @return void
      */
-    
-    //@todo       Convert all HTML into templates
-
     function display_strava_settings() {
-        
+        $options  = wp_parse_args( get_option( 'astrava_api_settings' )); 
+        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
+
+        //Check to see if the options are avaialble
+        if (empty($options['astrava_strava_client_id']) || 
+            empty($options['astrava_strava_client_secret']) || 
+            empty($options['astrava_strava_oauth'])){
+
+            echo $template->render('admin/oauth-warning', array('optionsUrl' => home_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api'));
+        }
     }
 
 
     /**
-     * [display_admin_field description]
-     * @param  [type] $args [description]
-     * @return [type]       [description]
+     * A Generic function to display an admin filed.  Assumes the $args array contains atleast the name of 
+     * the field.  $args can contain a second boolean option to disable the field.
+     * 
+     * @param  array $args Array of args as passed in from add_settings_field
+     * 
+     * @return void
      */
     function display_admin_field($args) {
         $id       = $args[0];
         $options  = wp_parse_args( get_option( 'astrava_api_settings' ), array($id => ''));
-        $disabled = (isset($args[1])) ? ' disabled' : '' ;
 
-        echo '<input id="' . $id. '" name="astrava_api_settings[' . $id . ']" class="regular-text code" type="text" value="' . $options[$id] . '"' . $disabled . '>';
+        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
+        echo $template->render('admin/forms/input', array( 'id' => $id,
+                                                            'value'    => $options[$id],
+                                                            'disabled'   => ((isset($args[1])) ? ' disabled' : '' )));
     }
 
+    /**
+     * Generic function for displaying a select option in the admin
+     * 
+     * @param  string $settings The name of the options item
+     * @param  string $field    The name of the option
+     * @param  array  $values   The possible values of the optino in an associative array
+     * 
+     * @return void
+     */
+    function display_admin_select($settings, $field, $values) {
+        $options  = wp_parse_args(get_option($settings), array($field => '')); 
+        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
+        echo $template->render('admin/forms/select', array( 'settings' => $settings,
+                                                            'field'    => $field,
+                                                            'values'   => $values));
+    }
+
+    /**
+     * Wrapper for the astrava_embed_type option    
+     * 
+     * @return void
+     */
     function display_astrava_embed_type() {
-        $options  = wp_parse_args( get_option('astrava_gen_settings'), array('astrava_embed_type' => 'iframe')); 
-        ?>
-        <select name="astrava_gen_settings[astrava_embed_type]">
-            <option<?php if ($options['astrava_embed_type'] == 'iframe') echo " selected" ?>>iframe</option>
-            <option<?php if ($options['astrava_embed_type'] == 'template') echo " selected" ?>>template</option>
-        </select>
-        <?php
+        display_admin_select('astrava_gen_settings', 'astrava_embed_type', array('iframe' => 'iframe', 
+                                                                                 'template' => 'template'));
     }
 
+    /**
+     * Wrapper for the astrava_embed_units option    
+     * 
+     * @return void
+     */
     function display_astrava_embed_units() {
-        $options  = wp_parse_args( get_option('astrava_gen_settings'), array('astrava_embed_units' => 'i')); 
-        ?>
-        <select name="astrava_gen_settings[astrava_embed_units]">
-            <option value="i"<?php if ($options['astrava_embed_units'] == 'i') echo " selected" ?>>Miles/Feet</option>
-            <option value="m"<?php if ($options['astrava_embed_units'] == 'm') echo " selected" ?>>Meter/Kilometers</option>
-        </select>
-        <?php
+        display_admin_select('astrava_gen_settings', 'astrava_embed_units', array('Miles/Feet' => 'i', 
+                                                                                  'Meter/Kilometers' => 'm'));
     }
 
-
+    /**
+     * Wrapper for the astrava_embed_pace option    
+     * 
+     * @return void
+     */
     function display_astrava_embed_pace() {
-        $options  = wp_parse_args( get_option('astrava_gen_settings'), array('astrava_embed_pace' => '1')); 
-        ?>
-        <select name="astrava_gen_settings[astrava_embed_pace]">
-            <option value="1"<?php if ($options['astrava_embed_pace'] == '1') echo " selected" ?>>Yes</option>
-            <option value="0"<?php if ($options['astrava_embed_pace'] == '0') echo " selected" ?>>No</option>
-        </select>
-        <?php
+        display_admin_select('astrava_gen_settings', 'astrava_embed_pace', array('Yes' => 1, 
+                                                                                 'No' => 0));
     }
 
+    /**
+     * Wrapper for the display_astrava_auto_create option    
+     * 
+     * @return void
+     */
     function display_astrava_auto_create() {
-        $options  = wp_parse_args(get_option('astrava_gen_settings'), array('display_astrava_auto_create' => 1)); 
-        ?>
-        <select name="astrava_gen_settings[display_astrava_auto_create]">
-            <option<?php if ($options['display_astrava_auto_create'] == 1) echo " selected" ?>>Yes</option>
-            <option<?php if ($options['display_astrava_auto_create'] == 0) echo " selected" ?>>No</option>
-        </select>
-        <?php
+        display_admin_select('astrava_gen_settings', 'display_astrava_auto_create', array('Yes' => 1, 
+                                                                                          'No' => 0));
     }
 
+    /**
+     * Wrapper for the astrava_auto_create_post_cat option    
+     * 
+     * @return void
+     */
     function display_astrava_auto_create_cat() {
         $options  = wp_parse_args(get_option('astrava_gen_settings'), array('astrava_auto_create_post_cat' => 0)); 
         wp_dropdown_categories(array('name'          => 'astrava_gen_settings[astrava_auto_create_post_cat]',
@@ -149,71 +205,52 @@
                                      'hide_if_empty' => false));
     }
 
+    /**
+     * Create and displaye a template editor    
+     * 
+     * @return void
+     */
     function display_astrava_embed_template() {
         $options  = wp_parse_args(get_option('astrava_gen_settings'), array('astrava_embed_template' => ''));
+        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
         wp_editor($options['astrava_embed_template'], 'template_editor', 
                     array ('media_buttons' => false, 
                            'textarea_name' => 'astrava_gen_settings[astrava_embed_template]',
                            'textarea_rows' => 10)); 
-        ?>
-        <h3> Template tags </h3>
-        <ul>
-            <li>[distance] - Total distance of the activity
-            <li>[description] - Description of the activity
-            <li>[duration] - Duration of the activity
-            <li>[photo] - The first photo attached to the activity
-            <li>[map] - A google map of the route
-            <li>[photoOrMap] - Display a photo if there is one otherwise display map
-            <li>[max_hr] - Maximum heart rate
-            <li>[avg_hr] - Average heart rate
-            <li>[elevation] - Total elevation of the activity
-            <li>[name] - Name of the activity
-            <li>[speed] - Running pace or riding speed
-            <li>[time] Start time of the activity
-            <li>[type] Type of the activity
-        </ul>
-        <?php
+        echo $template->render('admin/available-tags');
     }
 
+    /**
+     * Display the instructions for setting up the api access
+     * 
+     * @return void
+     */
     function display_strava_connect_instructions() { 
         $id      = $args[0];
         $options = wp_parse_args( get_option( 'astrava_api_settings' )); 
-        $authUrl = home_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api';
+        $data    = array('plugin_url' => ASTRAVA_PLUGIN_URL);
 
-        ?>
-        <ol>
-            <li> Create an application at <a target="_new" href="http://www.strava.com/developers">http://www.strava.com/developers</a>. Make sure the redirect URL is set to the URL of your site.</li>
-            <li> Enter the Client ID and Secret in the fields below.  After you save your settings, You will be presented with a button to authorize Strava.</li>
-        </ol>
-        <?php
         if (!empty($options['astrava_strava_client_id']) && !empty($options['astrava_strava_client_secret'])){
-            
             $authCallbackUrl = site_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api';
             $strava          = new StravaApi($options['astrava_strava_client_id'], $options['astrava_strava_client_secret']);
-            $authUrl         = $strava->getAuthorizeURL($authCallbackUrl);
+            $data['authUrl'] = $strava->getAuthorizeURL($authCallbackUrl);
+        }
 
-        ?>
-        <p><a href="<?php echo $authUrl ?>"><img src="<?php echo ASTRAVA_PLUGIN_URL; ?>assets/ConnectWithStrava.png"></a></p>
-        <?php 
-        } 
+        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
+        echo $template->render('admin/oauth-instructions', $data);
     }
 
+    /**
+     * Display the base admin options page
+     * 
+     * @return void
+     */
     function display_astrava_admin_page() {
-
         $ctab = (isset($_GET['tab']) ? $_GET['tab'] : 'opts');
+        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
 
-        ?>
-        <div class="wrap">
-        <h1> Custom Strava Integration </h1>
+        echo $template->render('admin/page-header', array('ctab' => $ctab));
         
-        <h2 class="nav-tab-wrapper">
-            <a href="?page=astrava_admin&tab=opts" class="nav-tab <?php if ($ctab != 'api') echo 'nav-tab-active'; ?>">General</a>
-            <a href="?page=astrava_admin&tab=api" class="nav-tab <?php if ($ctab == 'api') echo 'nav-tab-active'; ?>">Connect to Strava</a>
-        </h2>
-        
-        <form action="options.php" method="post">
-        <?php      
-
         if ($ctab == 'api') {
             settings_fields('astrava_api_settings');
             do_settings_sections('astrava_api_settings'); 
@@ -223,16 +260,21 @@
         }
 
         submit_button();
-        ?>
-        </form> 
-        <?php
+
+        echo $template->render('admin/page-footer');
+        
     }
 
+    /**
+     * Display a meta box on the post edit page.  This box will contain the last 5 items
+     * 
+     * @return void
+     */
     function display_astrava_admin_meta()
     {
         $options = wp_parse_args( get_option( 'astrava_api_settings' )); 
-        $optionsUrl = home_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api';
-        
+        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
+
         //Check to see if the options are avaialble
         if (!empty($options['astrava_strava_oauth'])){
             $strava          = new StravaApi($options['astrava_strava_client_id'], 
@@ -240,47 +282,10 @@
                                              $options['astrava_strava_oauth']);
             
             $activities = $strava->getActivities(array('per_page' => 5)); 
-            ?>
-            <?php if (count(activities) > 0):?>
-                <div>
-                    Click the link to insert this activity at the edit point.
-                    <ul>
-                        <?php foreach ($activities as $activity): ?>
-                            <li>
-                                <a class="astrava-editor-link" href="#" 
-                                    data-activity-id="<?php echo $activity->id; ?>"><?php echo $activity->name; ?></a><br>
-                                <em><?php echo $activity->type; ?> - <?php echo human_time_diff(strtotime($activity->start_date), time()); ?> ago</em>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-                <script type="text/javascript">
-
-                 jQuery(".astrava-editor-link").click(function() {   
-                        var shortcode = '[astrava activity="' + jQuery(this).data('activity-id') + '"]';
-                        if (tinymce.activeEditor != null) {
-                            tinymce.activeEditor.execCommand('mceInsertContent', false, shortcode); 
-                        } else {
-                            var currentPos = document.getElementById("content").selectionStart;
-                            var textAreaCotents = jQuery("#content").val();
-
-                            jQuery("#content").val(textAreaCotents.substring(0, currentPos) + shortcode + textAreaTxt.substring(currentPos));
-                        }
-                    });     
-                </script>
-            <?php else: ?>
-                <div> No recent activities found.</div>  
-            <?php endif; ?>
-            <?php
-        //  If the are get the last 10 activities and display them
-        //      If no activities display error message
+            echo $template->render('admin/post-meta-box', array('activities' => $activities));
         } else { //If the plugin isn't configured, Display error message and link to configs.
-            ?>
-            <div> The Astrava Plugin isn't properly configured.  Please vist <a href="<?php echo $optionsUrl; ?>">the configuration page</a> and link your account.</div>
-            <?php
+            echo $template->render('admin/oauth-warning', array('optionsUrl' => home_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api'));
         }
         
-    
     }
-	
-?>
+    

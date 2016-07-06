@@ -1,0 +1,30 @@
+<?php if (count(activities) > 0):?>
+<div>
+    Click the link to insert this activity at the edit point.
+    <ul>
+        <?php foreach ($activities as $activity): ?>
+            <li>
+                <a class="astrava-editor-link" href="#" 
+                    data-activity-id="<?php echo $activity->id; ?>"><?php echo $activity->name; ?></a><br>
+                <em><?php echo $activity->type; ?> - <?php echo human_time_diff(strtotime($activity->start_date), time()); ?> ago</em>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+<script type="text/javascript">
+
+ jQuery(".astrava-editor-link").click(function() {   
+        var shortcode = '[astrava activity="' + jQuery(this).data('activity-id') + '"]';
+        if (tinymce.activeEditor != null) {
+            tinymce.activeEditor.execCommand('mceInsertContent', false, shortcode); 
+        } else {
+            var currentPos = document.getElementById("content").selectionStart;
+            var textAreaCotents = jQuery("#content").val();
+
+            jQuery("#content").val(textAreaCotents.substring(0, currentPos) + shortcode + textAreaTxt.substring(currentPos));
+        }
+    });     
+</script>
+<?php else: ?>
+<div> No recent activities found.</div>  
+<?php endif; ?>
