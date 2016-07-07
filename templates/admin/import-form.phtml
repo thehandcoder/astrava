@@ -1,0 +1,25 @@
+</form>
+<form action="options-general.php?page=astrava_admin&tab=import" method="post"/>
+<h2>Import Activities</h2>
+This will automatically import events after a specific date. By default, the import does not overwrite activity that has already been imported.
+<table class="form-table">
+    <tr>
+        <th scope="row">Import events after:</th>
+        <td>
+            <input type="text" name="importfrom" id="importfrom" />
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">Overwrite old imports:</th>
+        <td>
+            <input type="checkbox" name="overwrite_old" id="overwrite_old" value="1"/>
+        </td>
+    </tr>
+</table>
+<script>
+    jQuery(document).ready(function() {
+        jQuery('#importfrom').datepicker({
+            dateFormat: "yy-mm-dd"
+        });
+    });
+</script>

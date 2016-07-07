@@ -1,30 +1,28 @@
 <div id="strava-map-<?php echo $id ?>" class="astrava-map"></div>
-<script type="text/javascript" src="http://maps.google.com/maps/api/js?key=AIzaSyAoAUyOJ-PoLBa8QGGyWNf_A1-6Mh8f84Q&libraries=geometry&amp;sensor=false">
-</script>
 <style type="text/css"> .astrava-map { width:100%;height:300px; }</style>
 <script type='text/javascript'>
-    var map = new google.maps.Map(document.getElementById('strava-map-<?php echo $id ?>'), {
+    var map<?php echo $id ?> = new google.maps.Map(document.getElementById('strava-map-<?php echo $id ?>'), {
       center: {lat: <?php echo $lat; ?>, 
       		   lng: <?php echo $lng; ?>},
       zoom: 15
     });
 
-    var decodedPath = google.maps.geometry.encoding.decodePath("<?php echo $polyline ?>");
+    var decodedPath<?php echo $id ?> = google.maps.geometry.encoding.decodePath("<?php echo $polyline ?>");
 
-    var setRegion = new google.maps.Polyline({
-				        path: decodedPath,
+    var setRegion<?php echo $id ?> = new google.maps.Polyline({
+				        path: decodedPath<?php echo $id ?>,
 				        strokeColor: "#FF0000",
 				        strokeOpacity: 1.0,
 				        strokeWeight: 2,
-				        map: map
+				        map: map<?php echo $id ?>
 				    });
 
-    var points = setRegion.getPath().getArray();
-    var bounds = new google.maps.LatLngBounds();
-    for (var n = 0; n < points.length ; n++){
-        bounds.extend(points[n]);
+    var points<?php echo $id ?> = setRegion<?php echo $id ?>.getPath().getArray();
+    var bounds<?php echo $id ?> = new google.maps.LatLngBounds();
+    for (var n = 0; n < points<?php echo $id ?>.length ; n++){
+        bounds<?php echo $id ?>.extend(points<?php echo $id ?>[n]);
     }
     
-    center = bounds.getCenter();
-    map.setCenter(center);
+    var center<?php echo $id ?> = bounds<?php echo $id ?>.getCenter();
+    map<?php echo $id ?>.setCenter(center<?php echo $id ?>);
 </script>

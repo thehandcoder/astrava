@@ -26,11 +26,11 @@
 	function astrava_activate() {
 		// Store default option values
 		$options = array(
-    					 'astrava_embed_type' => 'template',
+    					 'embed_type' => 'template',
     					 'display_astrava_auto_create' => No,
-    					 'astrava_auto_create_post_cat' => '',
-    					 'astrava_embed_units' => 'i',
-    					 'astrava_embed_pace' => 1);
+    					 'auto_create_post_cat' => '',
+    					 'embed_units' => 'i',
+    					 'embed_pace' => 1);
 		
 		update_option('astrava_gen_settings', $options);
 
