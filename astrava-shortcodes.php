@@ -6,8 +6,6 @@
 	 * 
 	 * 
 	 */
-
-
 	add_shortcode( 'astrava', 'parse_astrava_shortcode');
 	add_shortcode( 'astrava_map', 'parse_astrava_map_shortcode');
 	
@@ -61,7 +59,12 @@
 				if ($gen_options['embed_type'] == 'iframe' or isset($atts['iframe'])) {
 					$html_out = '<iframe height="405" width="100%"" frameborder="0" allowtransparency="true" scrolling="no" src="https://www.strava.com/activities/' . $atts['activity'] . '/embed/' . $activity->embed_token . '"></iframe>';
 				} else {
-					$strava_template = $astrava_templates['default'];
+
+					if (isset($astrava_templates[strtolower($activity->type)])) {
+						$strava_template = $astrava_templates[strtolower($activity->type)];
+					} else {
+						$strava_template = $astrava_templates['default'];
+					}
 					
 					// Name
 					$activity_name = ((in_array('noname', $atts)) ? '' : $activity->name);

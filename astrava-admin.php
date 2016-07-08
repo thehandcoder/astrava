@@ -99,20 +99,6 @@
                                        'display_astrava_embed_pace', 
                                        'astrava_gen_settings', 
                                        'astrava_gen_settings');
-
-                    register_setting('astrava_templates','astrava_templates');
-
-                    add_settings_section('astrava_templates', 
-                                         'Edit Templates', 
-                                         'display_astrava_templates', 
-                                         'astrava_templates');
-
-                    add_settings_field('default', 
-                                       'Default Template', 
-                                       'display_astrava_embed_template', 
-                                       'astrava_templates', 
-                                       'astrava_templates');
-
                 });
 		
     /**
@@ -265,22 +251,6 @@
                                      'hide_if_empty' => false));
     }
 
-    /**
-     * Create and displaye a template editor    
-     * 
-     * @return void
-     */
-    function display_astrava_embed_template() {
-        $options  = wp_parse_args(get_option('astrava_templates'), array('default' => ''));
-        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
-
-        wp_editor($options['default'], 'template_editor', 
-                    array ('media_buttons' => false, 
-                           'textarea_name' => 'astrava_templates[default]',
-                           'textarea_rows' => 10)); 
-
-        echo $template->render('admin/available-tags');
-    }
 
     /**
      * Display the instructions for setting up the api access
@@ -324,9 +294,31 @@
                 do_settings_sections('astrava_gen_settings');
                 submit_button();
                 break;
-            case 'templates':
-                settings_fields('astrava_templates');
-                do_settings_sections('astrava_templates');
+            case 'templates': 
+                $astrava_templates = get_option('astrava_templates', array());            
+                switch($_REQUEST['state']) {
+                    case 'new':
+                        echo $template->render('admin/new-template-form');
+                        break;
+                    case 'save':
+                        $astrava_templates[strtolower($_REQUEST['template_name'])] = $_REQUEST['template_code'];
+                        update_option('astrava_templates', $astrava_templates);
+
+                        echo $template->render('admin/template-save-success');
+                        
+                    default: 
+                        if ($_REQUEST['template_name']) {
+                            $selected_type = $_REQUEST['template_name'];
+                        } else {
+                            $selected_type = 'default';
+                        }
+
+                        echo $template->render('admin/edit-template-form',  
+                                                array('astrava_templates' => $astrava_templates,
+                                                      'selected_type'     => $selected_type));
+                        break;
+                }
+
                 submit_button();
                 break;
             case 'import':

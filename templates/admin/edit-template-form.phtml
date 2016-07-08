@@ -1,0 +1,59 @@
+</form>
+<form action="options-general.php?page=astrava_admin&tab=templates" method="post"/>
+<input name="state" value="save" type="hidden" />
+<h2>Edit Templates</h2>
+<table class="form-table">
+    <tr>
+        <th scope="row">Activity Type:</th>
+        <td>
+            <select name="template_name" id="template_name_option">
+                <?php foreach($astrava_templates as $template_type => $template_code): ?>
+                <option value="<?php echo $template_type ?>" <?php if ($selected_type == $template_type) echo " selected";?>><?php echo $template_type; ?></option>
+                <?php endforeach; ?>
+            </select>&nbsp; &nbsp;<a href="options-general.php?page=astrava_admin&tab=templates&state=new">+ Create New</a>
+            <script>
+                 jQuery(function(){
+                      // bind change event to select
+                      jQuery('#template_name_option').on('change', function () {
+                          var template_name = jQuery(this).val(); // get selected value
+                          url = 'options-general.php?page=astrava_admin&tab=templates&template_name=' + template_name
+                          if (url) { // require a URL
+                              window.location = url; // redirect
+                          }
+                          return false;
+                      });
+                    });
+
+
+            </script>
+        </td>
+    </tr>
+    <tr>
+        <td scope="row" valign="top">
+        <strong>Available Tags</strong>
+        <ul>
+            <li>[distance]</li>
+            <li>[description]</li>
+            <li>[duration]</li>
+            <li>[photo]</li>
+            <li>[map]</li>
+            <li>[photoOrMap]</li>
+            <li>[max_hr]</li>
+            <li>[avg_hr]</li>
+            <li>[elevation]</li>
+            <li>[name]</li>
+            <li>[speed]</li>
+            <li>[time]</li>
+            <li>[type]</li>
+        </ul>
+        </td>
+        <td valign="top"> 
+        <?php
+            wp_editor($astrava_templates[$selected_type], 'template_code', 
+                    array ('media_buttons' => false, 
+                           'textarea_name' => 'template_code',
+                           'textarea_rows' => 12,
+                           'classes' => 'template_editor')); 
+            ?></td>
+    </tr>
+</table>
