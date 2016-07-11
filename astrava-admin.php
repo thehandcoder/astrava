@@ -39,7 +39,22 @@
                     
                     add_settings_section('astrava_api_settings', 
                                          'Api Settings', 
-                                         'display_strava_connect_instructions', 
+                                         function () { 
+                                            $id      = $args[0];
+                                            $options = wp_parse_args( get_option( 'astrava_api_settings' )); 
+                                            $data    = array('plugin_url' => ASTRAVA_PLUGIN_URL);
+
+                                            if (!empty($options['strava_client_id']) && 
+                                                !empty($options['strava_client_secret'])){
+                                                $authCallbackUrl = site_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api';
+                                                $strava          = new StravaApi($options['strava_client_id'], 
+                                                                                 $options['strava_client_secret']);
+                                                $data['authUrl'] = $strava->getAuthorizeURL($authCallbackUrl);
+                                            }
+
+                                            $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
+                                            echo $template->render('admin/oauth-instructions', $data);
+                                        }, 
                                          'astrava_api_settings');
                     
                     add_settings_field('strava_client_id', 
@@ -58,7 +73,21 @@
 
                     add_settings_field('strava_oauth', 
                                        'Access Token', 
-                                       'process_oath_token', 
+                                       function ($args) {
+                                        // Look to see if we have a code
+                                        if (isset($_GET['code'])) {
+                                            $options      = wp_parse_args(get_option('astrava_api_settings'));
+                                            $strava       = new StravaApi($options['strava_client_id'], 
+                                                                          $options['strava_client_secret']);
+                                            $access_token = $strava->fetchOauthToken($_GET['code']);
+
+                                            $options['strava_oauth'] = $access_token;
+                                            update_option('astrava_api_settings', $options);
+                                        }
+
+                                        display_admin_field($args);
+
+                                    }, 
                                        'astrava_api_settings', 
                                        'astrava_api_settings', 
                                        array('strava_oauth', 'disabled'));
@@ -67,36 +96,84 @@
 
                     add_settings_section('astrava_gen_settings', 
                                          'General Settings', 
-                                         'display_strava_settings', 
+                                         function () {
+                                                $options  = wp_parse_args( get_option( 'astrava_api_settings' )); 
+                                                $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
+
+                                                //Check to see if the options are avaialble
+                                                if (empty($options['strava_client_id']) || 
+                                                    empty($options['strava_client_secret']) || 
+                                                    empty($options['strava_oauth'])){
+
+                                                    echo $template->render('admin/oauth-warning', 
+                                                                            array('optionsUrl' => home_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api'));
+                                                }
+                                            }, 
                                          'astrava_gen_settings');
 
                     add_settings_field('auto_create_post', 
                                        'Autocreate Posts for new activity', 
-                                       'display_astrava_auto_create', 
+                                        function () {
+                                            display_admin_select('astrava_gen_settings', 
+                                                                 'auto_create_post', 
+                                                                 array('Yes' => 1, 'No' => 0));
+                                        }, 
                                        'astrava_gen_settings', 
                                        'astrava_gen_settings');
 
                     add_settings_field('auto_create_post_cat', 
                                        'Default category for auto-created post', 
-                                       'display_astrava_auto_create_cat', 
+                                       function () {
+                                            $options  = wp_parse_args(get_option('astrava_gen_settings'), 
+                                                                      array('auto_create_post_cat' => 0)); 
+
+                                            wp_dropdown_categories(array('name'          => 'astrava_gen_settings[auto_create_post_cat]',
+                                                                         'selected'      => $options['auto_create_post_cat'],
+                                                                         'hide_empty'    => false,
+                                                                         'hide_if_empty' => false));
+                                        }, 
+                                       'astrava_gen_settings', 
+                                       'astrava_gen_settings');
+
+                    add_settings_field('exclude_auto_cat', 
+                                       'Exclude the autocreated post category from the homepage', 
+                                       function () {
+                                            display_admin_select('astrava_gen_settings', 
+                                                                 'exclude_auto_cat', 
+                                                                 array('Yes' => 1, 'No' => 0));
+                                        }, 
                                        'astrava_gen_settings', 
                                        'astrava_gen_settings');
 
                     add_settings_field('embed_type', 
                                        'Embed Type', 
-                                       'display_astrava_embed_type', 
+                                       function () {
+                                            display_admin_select('astrava_gen_settings', 
+                                                                 'embed_type', 
+                                                                 array('iframe' => 'iframe', 
+                                                                       'template' => 'template'));
+                                        },
                                        'astrava_gen_settings', 
                                        'astrava_gen_settings');
 
                     add_settings_field('embed_units', 
                                        'Units of measurment', 
-                                       'display_astrava_embed_units', 
+                                       function () {
+                                            display_admin_select('astrava_gen_settings', 
+                                                                 'embed_units', 
+                                                                 array('Miles/Feet' => 'i', 
+                                                                       'Meter/Kilometers' => 'm'));
+                                        }, 
                                        'astrava_gen_settings', 
                                        'astrava_gen_settings');
 
                     add_settings_field('embed_pace', 
                                        'Use pace for runs', 
-                                       'display_astrava_embed_pace', 
+                                       function () {
+                                            display_admin_select('astrava_gen_settings', 
+                                                                 'embed_pace', 
+                                                                 array('Yes' => 1, 'No' => 0));
+                                        },
                                        'astrava_gen_settings', 
                                        'astrava_gen_settings');
                 });
@@ -108,53 +185,58 @@
                 function () {
                     add_meta_box("astrava-admin-meta", 
                                  "Recent Strava Activity", 
-                                 "display_astrava_admin_meta", 
-                                 "post", 
-                                 "side", 
-                                 "core", 
-                                 null);
+                                 function () {
+                                    $options = get_option('astrava_api_settings'); 
+                                    $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
+
+                                    //Check to see if the options are avaialble
+                                    if (!empty($options['strava_oauth'])){
+                                        if (isset($_REQUEST['strava_page'])) {
+                                            $current_page    = intval($_REQUEST['strava_page']);
+                                            $activity_params = array('per_page' => 5, 'page' => $current_page);
+                                        } else {
+                                            $current_page    = 1;
+                                            $activity_params = array('per_page' => 5);   
+                                        }
+
+
+                                        // create a hash from the params
+                                        // check for a transient If none was found then make the request
+                                        $key        = md5(serialize($activity_params));
+                                        $activities = get_transient('astrava-activity-'. $key);
+                                        
+                                        if (!$activities) {
+                                            $strava     = new StravaApi($options['strava_client_id'], 
+                                                                        $options['strava_client_secret'],
+                                                                        $options['strava_oauth']);
+                                            $activities = $strava->getActivities($activity_params);
+                                            set_transient('astrava-activity-'. $key, $activities, 60 * 10);
+                                        }
+
+                                        echo $template->render('admin/post-meta-box', 
+                                                               array('activities' => $activities, 
+                                                                     'current_page' => $current_page));
+                                    } else { //If the plugin isn't configured, Display error message and link to configs.
+                                        echo $template->render('admin/oauth-warning', 
+                                                                array('optionsUrl' => home_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api'));
+                                    }
+                                    
+                                }, 
+                                "post", 
+                                "side", 
+                                "core", 
+                                null);
                 });
+    
 
     
-    /**
-     * Process the request for a bearer token
-     * @param  array $args An array of options as passed in from the add_settings_field.  It 
-     *                     expects at least the initial array item to be the name of the option
-     *                   
-     * @return void
-     */
-    function process_oath_token($args) {
-        // Look to see if we have a code
-        if (isset($_GET['code'])) {
-            $options      = wp_parse_args(get_option('astrava_api_settings'));
-            $strava       = new StravaApi($options['strava_client_id'], $options['strava_client_secret']);
-            $access_token = $strava->fetchOauthToken($_GET['code']);
-
-            $options['strava_oauth'] = $access_token;
-            update_option('astrava_api_settings', $options);
-        }
-
-        display_admin_field($args);
-
+function exclude_category( $query ) {
+    echo "yepeypeyepye";
+    if ( $query->is_home() && $query->is_main_query() ) {
+        $query->set( 'cat', '-1,-1347' );
     }
-
-    /**
-     * Check to see if the strava API has been configured and display a warning if it hasn't
-     * 
-     * @return void
-     */
-    function display_strava_settings() {
-        $options  = wp_parse_args( get_option( 'astrava_api_settings' )); 
-        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
-
-        //Check to see if the options are avaialble
-        if (empty($options['strava_client_id']) || 
-            empty($options['strava_client_secret']) || 
-            empty($options['strava_oauth'])){
-
-            echo $template->render('admin/oauth-warning', array('optionsUrl' => home_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api'));
-        }
-    }
+}
+add_action( 'pre_get_posts', 'exclude_category' );
 
 
     /**
@@ -191,85 +273,6 @@
                                                             'field'    => $field,
                                                             'values'   => $values,
                                                             'current'  => $options[$field]));
-    }
-
-    /**
-     * Wrapper for the embed_type option    
-     * 
-     * @return void
-     */
-    function display_astrava_embed_type() {
-        display_admin_select('astrava_gen_settings', 
-                             'embed_type', 
-                             array('iframe' => 'iframe', 'template' => 'template'));
-    }
-
-    /**
-     * Wrapper for the embed_units option    
-     * 
-     * @return void
-     */
-    function display_astrava_embed_units() {
-        display_admin_select('astrava_gen_settings', 
-                             'embed_units', 
-                             array('Miles/Feet' => 'i', 'Meter/Kilometers' => 'm'));
-    }
-
-    /**
-     * Wrapper for the embed_pace option    
-     * 
-     * @return void
-     */
-    function display_astrava_embed_pace() {
-        display_admin_select('astrava_gen_settings', 
-                             'embed_pace', 
-                             array('Yes' => 1, 'No' => 0));
-    }
-
-    /**
-     * Wrapper for the display_astrava_auto_create option    
-     * 
-     * @return void
-     */
-    function display_astrava_auto_create() {
-        display_admin_select('astrava_gen_settings', 
-                             'auto_create_post', 
-                             array('Yes' => 1, 'No' => 0));
-    }
-
-    /**
-     * Wrapper for the auto_create_post_cat option    
-     * 
-     * @return void
-     */
-    function display_astrava_auto_create_cat() {
-        $options  = wp_parse_args(get_option('astrava_gen_settings'), array('auto_create_post_cat' => 0)); 
-
-        wp_dropdown_categories(array('name'          => 'astrava_gen_settings[auto_create_post_cat]',
-                                     'selected'      => $options['auto_create_post_cat'],
-                                     'hide_empty'    => false,
-                                     'hide_if_empty' => false));
-    }
-
-
-    /**
-     * Display the instructions for setting up the api access
-     * 
-     * @return void
-     */
-    function display_strava_connect_instructions() { 
-        $id      = $args[0];
-        $options = wp_parse_args( get_option( 'astrava_api_settings' )); 
-        $data    = array('plugin_url' => ASTRAVA_PLUGIN_URL);
-
-        if (!empty($options['strava_client_id']) && !empty($options['strava_client_secret'])){
-            $authCallbackUrl = site_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api';
-            $strava          = new StravaApi($options['strava_client_id'], $options['strava_client_secret']);
-            $data['authUrl'] = $strava->getAuthorizeURL($authCallbackUrl);
-        }
-
-        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
-        echo $template->render('admin/oauth-instructions', $data);
     }
 
     /**
@@ -337,51 +340,8 @@
                     submit_button('Import');
                 }
                 break;
-        }
-
-        
+        }    
 
         echo $template->render('admin/page-footer');
-        
-    }
-
-    /**
-     * Display a meta box on the post edit page.  This box will contain the last 5 items
-     * 
-     * @return void
-     */
-    function display_astrava_admin_meta()
-    {
-        $options = get_option('astrava_api_settings'); 
-        $template = new Template(ASTRAVA_PLUGIN_DIR . 'templates/');
-
-        //Check to see if the options are avaialble
-        if (!empty($options['strava_oauth'])){
-            if (isset($_REQUEST['strava_page'])) {
-                $current_page    = intval($_REQUEST['strava_page']);
-                $activity_params = array('per_page' => 5, 'page' => $current_page);
-            } else {
-                $current_page    = 1;
-                $activity_params = array('per_page' => 5);   
-            }
-
-
-            // create a hash from the params
-            // check for a transient If none was found then make the request
-            $key        = md5(serialize($activity_params));
-            $activities = get_transient('astrava-activity-'. $key);
-            
-            if (!$activities) {
-                $strava     = new StravaApi($options['strava_client_id'], 
-                                            $options['strava_client_secret'],
-                                            $options['strava_oauth']);
-                $activities = $strava->getActivities($activity_params);
-                set_transient('astrava-activity-'. $key, $activities, 60 * 10);
-            }
-
-            echo $template->render('admin/post-meta-box', array('activities' => $activities, 'current_page' => $current_page));
-        } else { //If the plugin isn't configured, Display error message and link to configs.
-            echo $template->render('admin/oauth-warning', array('optionsUrl' => home_url() . '/wp-admin/options-general.php?page=astrava_admin&tab=api'));
-        }
         
     }

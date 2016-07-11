@@ -2,7 +2,7 @@
 	/*
 		Plugin Name: Astrava Plugin
 		Plugin URI: http://jesustaketheheels.com
-		Description: Integrates the Strava api with wordpress
+		Description: Integrates the Strava api with wordpress.  Allow user to embed strava events into posts.  Can select between strava iframe and custom templates.
 		Version: 0.2
 		Author: thehandcoder
 		Author URI: http://jesustaketheheels.com
@@ -32,5 +32,21 @@
 	if (is_admin()) {
 		require_once(ASTRAVA_PLUGIN_DIR . 'astrava-admin.php');
 	}
+
+
+    add_filter('pre_get_posts', 
+           function($query) {
+                $gen_options = get_option('astrava_gen_settings');
+
+                if ($query->is_home 
+                	&& $query->is_main_query() 
+                	&& $gen_options['exclude_auto_cat'] == 1) {
+
+                    echo "exclude";
+                    $query->set('cat', '-' . $gen_options['auto_create_post_cat']);
+                }
+
+                return $query;
+            });
 
 	

@@ -1,23 +1,4 @@
 <?php
-	add_action('plugins_loaded', 'astrava_update_check');
-	function astrava_update_check() {
-		$current_version = get_option('astrava_version');
-    	
-    	if (get_option($current_version) != ASTRAVA_VERSION) {
-        	switch(true) {
-        		case $current_version < 0.2:
-        			$gen_options = get_option('astrava_gen_settings');
-        			$template = $gen_options['astrava_embed_template'];
-        			unset($gen_options['astrava_embed_template']);
-        			update_option('astrava_gen_settings', $gen_options);
-        			update_option('astrava_templates', array('default' => $template));
-        			// Move the template from general to templates
-        		default:
-        			update_option('astrava_version', ASTRAVA_VERSION);
-        	}
-    	}
-	}
-
 
 	// Add activiation/deactivation hooks
 	register_activation_hook(__FILE__, 'astrava_activate');
@@ -34,6 +15,7 @@
 		
 		update_option('astrava_gen_settings', $options);
 
+		// Add the Templates
 		$options = array('default' => '<h3>[name]</h3>
 														[description]
 
@@ -55,17 +37,17 @@
 
 		update_option('astrava_templates', $options);
 
+		// Import marker for furture imports
+		update_option('astrava_last_activity_imported', time());
 
-		// Create cron event for activity imports
-		if (!wp_next_scheduled('astrava_import')) {
-			wp_schedule_event(time(), 'hourly', 'astrava_import');
-	    }
 	}
 
 
 	function astrava_deactivation() {
 		delete_option('astrava_gen_settings');
 		delete_option('astrava_api_settings');
+		delete_option('astrava_templates');
 		delete_option('astrava_version');
+		delete_option('astrava_last_activity_imported');
 		wp_clear_scheduled_hook('astrava_import');
 	}
