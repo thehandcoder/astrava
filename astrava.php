@@ -42,7 +42,6 @@
                 	&& $query->is_main_query() 
                 	&& $gen_options['exclude_auto_cat'] == 1) {
 
-                    echo "exclude";
                     $query->set('cat', '-' . $gen_options['auto_create_post_cat']);
                 }
 

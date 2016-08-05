@@ -227,17 +227,6 @@
                                 "core", 
                                 null);
                 });
-    
-
-    
-function exclude_category( $query ) {
-    echo "yepeypeyepye";
-    if ( $query->is_home() && $query->is_main_query() ) {
-        $query->set( 'cat', '-1,-1347' );
-    }
-}
-add_action( 'pre_get_posts', 'exclude_category' );
-
 
     /**
      * A Generic function to display an admin filed.  Assumes the $args array contains atleast the name of 
